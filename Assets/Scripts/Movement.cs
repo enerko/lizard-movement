@@ -20,15 +20,21 @@ public class Movement : MonoBehaviour
     private RaycastHit2D _rightHitInfo;
 
     [SerializeField] private float _posYOffet;
-    [SerializeField] private float _maxRotation;
 
     [SerializeField] private float _horizontalRayLength;
     [SerializeField] private float _originOffsetX;
 
-    private float similarityThreshold = 0.05f;
+    private float similarityThreshold = 0.2f;
     [SerializeField] private float _maxSpeed;
 
     [SerializeField] private float _inwardAngle;
+
+    [SerializeField] private float _angularSpeed;
+
+    private bool _isRotating = false;
+    private float _minAngle = 0.5f;
+
+    private Vector2 _input;
 
 
     // Start is called before the first frame update
@@ -42,9 +48,14 @@ public class Movement : MonoBehaviour
     {
         _horizontal = Input.GetAxisRaw("Horizontal");
         _vertical = Input.GetAxisRaw("Vertical");
+        _input = new Vector2(_horizontal, _vertical);
+        
+    }
 
+    private void FixedUpdate()
+    {
         // If vertical, ignore gravity
-        if(VectorSimilarity(transform.right, Vector2.up) > similarityThreshold || VectorSimilarity(-transform.right, Vector2.up) > similarityThreshold)
+        if (VectorSimilarity(transform.right, Vector2.up) > similarityThreshold || VectorSimilarity(-transform.right, Vector2.up) > similarityThreshold)
         {
             _rb.gravityScale = 0;
         }
@@ -53,23 +64,27 @@ public class Movement : MonoBehaviour
             _rb.gravityScale = 1;
         }
 
+        // Detect rotation and wall climbing
         if (DoubleRaycastDown())
         {
             OverrideRays();
+
             PositionOnGround();
 
         }
-    }
 
-    private void FixedUpdate()
-    {
-        if (_horizontal == 0 && _vertical == 0)
+        // If no input, stop player
+        if (_input == Vector2.zero) 
         {
             _rb.velocity = Vector2.zero;
         }
 
-        _rb.AddForce(_horizontal * _speed * Vector2.right, ForceMode2D.Force);
-        _rb.AddForce(_vertical * _speed * Vector2.up, ForceMode2D.Force);
+        if (!_isRotating)
+        {
+            _rb.AddForce(_horizontal * _speed * Vector2.right, ForceMode2D.Force);
+            _rb.AddForce(_vertical * _speed * Vector2.up, ForceMode2D.Force);
+        }
+        
 
         // Clamp the velocity to the maximum speed
         if (_rb.velocity.sqrMagnitude > _maxSpeed)
@@ -112,14 +127,23 @@ public class Movement : MonoBehaviour
         Debug.DrawLine(averagePoint, averagePoint + averageNormal, Color.green);
 
         // Calculate the target rotation based on the average normal
-        // Rotate the character to the calculated normal
         Quaternion targetRotation = Quaternion.FromToRotation(Vector3.up, averageNormal);
-        Quaternion finalRotation = Quaternion.RotateTowards(transform.rotation, 
-            targetRotation, _maxRotation);
-        transform.rotation = Quaternion.Euler(0, 0, finalRotation.eulerAngles.z);
+
+        // If the angle difference is small, don't rotate (to avoid jittering at the edge of two surfaces with different slopes, i.e. corners)
+        float angleDifference = Quaternion.Angle(transform.rotation, targetRotation);
+        Quaternion finalRotation = Quaternion.RotateTowards(transform.rotation,
+            targetRotation, _angularSpeed);
+
+        if (angleDifference > _minAngle)
+        {
+            transform.rotation = Quaternion.Euler(0, 0, finalRotation.eulerAngles.z);
+
+        }
+        _isRotating = Quaternion.Angle(transform.rotation, finalRotation) > _minAngle;
 
         // Move the character to the average position, with the offset applied
         transform.position = averagePoint + (Vector2)transform.up * _posYOffet;
+
     }
 
     void OverrideRays()
@@ -128,8 +152,8 @@ public class Movement : MonoBehaviour
         // If ray intersects with a wall, override the left/right downward ray
         if (_rb.velocity.magnitude > 0)
         {
-            // If moving towards left
-            if (VectorSimilarity(_rb.velocity, transform.right) < -similarityThreshold)
+            // If moving towards player's left
+            if (VectorSimilarity(_input, -transform.right) > similarityThreshold && _rb.velocity != Vector2.zero)
             {
                 
                 RaycastHit2D overrideLeftHitInfo;
@@ -144,7 +168,9 @@ public class Movement : MonoBehaviour
                     _leftHitInfo = overrideLeftHitInfo;
                 }
             }
-            else if (VectorSimilarity(_rb.velocity, transform.right) > similarityThreshold)
+
+            // If moving towards player's right
+            else if (VectorSimilarity(_input, transform.right) > similarityThreshold && _rb.velocity != Vector2.zero)
             {
                 RaycastHit2D overrideRightHitInfo;
                 Vector2 overrideRightRayOrigin = (Vector2)transform.position + _originOffsetY * (Vector2)transform.up + _originOffsetX * (Vector2)transform.right;
