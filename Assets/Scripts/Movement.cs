@@ -36,6 +36,9 @@ public class Movement : MonoBehaviour
 
     private Vector2 _input;
 
+    private Vector2 _customGravity;
+    private float _gravityScale = 10;
+
 
     // Start is called before the first frame update
     void Start()
@@ -54,15 +57,6 @@ public class Movement : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // If vertical, ignore gravity
-        if (VectorSimilarity(transform.right, Vector2.up) > similarityThreshold || VectorSimilarity(-transform.right, Vector2.up) > similarityThreshold)
-        {
-            _rb.gravityScale = 0;
-        }
-        else
-        {
-            _rb.gravityScale = 1;
-        }
 
         // Detect rotation and wall climbing
         if (DoubleRaycastDown())
@@ -70,38 +64,33 @@ public class Movement : MonoBehaviour
             OverrideRays();
 
             PositionOnGround();
-
+            Walk();
         }
+    }
 
-        // If no input, stop player
-        if (_input == Vector2.zero) 
+    void Walk()
+    { 
+        Vector2 groundNormal = (_leftHitInfo.normal + _rightHitInfo.normal) / 2;
+
+        if (VectorSimilarity(_input, groundNormal) < similarityThreshold)
         {
-            _rb.velocity = Vector2.zero;
+            // Allow movement in the input direction
+            _rb.velocity = _input.normalized * _speed;
         }
-
-        if (!_isRotating)
-        {
-            _rb.AddForce(_horizontal * _speed * Vector2.right, ForceMode2D.Force);
-            _rb.AddForce(_vertical * _speed * Vector2.up, ForceMode2D.Force);
-        }
-        
 
         // Clamp the velocity to the maximum speed
         if (_rb.velocity.sqrMagnitude > _maxSpeed)
         {
             _rb.velocity = _rb.velocity.normalized * _maxSpeed;
         }
-        
     }
 
     bool DoubleRaycastDown()
     {
 
         // Calculate the positions for the left and right rays
-        Vector2 leftRayOrigin = transform.position + _originOffsetY * transform.up
-            + _distanceFromCenter * transform.right;
-        Vector2 rightRayOrigin = transform.position + _originOffsetY * transform.up
-            - _distanceFromCenter * transform.right;
+        Vector2 leftRayOrigin = transform.position + _originOffsetY * transform.up+ _distanceFromCenter * transform.right;
+        Vector2 rightRayOrigin = transform.position + _originOffsetY * transform.up - _distanceFromCenter * transform.right;
 
         // Calculate the inward direction for the rays using rotation
         Vector2 inwardDirectionLeft = Quaternion.Euler(0, 0, _inwardAngle) * -transform.up;
@@ -117,7 +106,7 @@ public class Movement : MonoBehaviour
         return _leftHitInfo.collider != null && _rightHitInfo.collider != null;
     }
 
-
+    // Rotation logic
     void PositionOnGround()
     {
         // Calculate average normal and average point between the left and right rays
@@ -128,11 +117,12 @@ public class Movement : MonoBehaviour
 
         // Calculate the target rotation based on the average normal
         Quaternion targetRotation = Quaternion.FromToRotation(Vector3.up, averageNormal);
+        
 
         // If the angle difference is small, don't rotate (to avoid jittering at the edge of two surfaces with different slopes, i.e. corners)
         float angleDifference = Quaternion.Angle(transform.rotation, targetRotation);
-        Quaternion finalRotation = Quaternion.RotateTowards(transform.rotation,
-            targetRotation, _angularSpeed);
+        Quaternion finalRotation = Quaternion.RotateTowards(transform.rotation, targetRotation, _angularSpeed);
+        Debug.Log(finalRotation);
 
         if (angleDifference > _minAngle)
         {
@@ -150,39 +140,37 @@ public class Movement : MonoBehaviour
     {
         // Shoot a horizontal ray in the direction that the player is moving towards
         // If ray intersects with a wall, override the left/right downward ray
-        if (_rb.velocity.magnitude > 0)
+
+        // If moving towards player's left
+        if (VectorSimilarity(_input, -transform.right) > similarityThreshold)
         {
-            // If moving towards player's left
-            if (VectorSimilarity(_input, -transform.right) > similarityThreshold && _rb.velocity != Vector2.zero)
+
+            RaycastHit2D overrideLeftHitInfo;
+            Vector2 overrideLeftRayOrigin = (Vector2)transform.position + _originOffsetY * (Vector2)transform.up - _originOffsetX * (Vector2)transform.right;
+
+            overrideLeftHitInfo = Physics2D.Raycast(overrideLeftRayOrigin, -transform.right, _horizontalRayLength, _ground);
+            Debug.DrawRay(overrideLeftRayOrigin, _horizontalRayLength * -transform.right, Color.black);
+
+            if (overrideLeftHitInfo.collider != null)
             {
-                
-                RaycastHit2D overrideLeftHitInfo;
-                Vector2 overrideLeftRayOrigin = (Vector2)transform.position + _originOffsetY * (Vector2)transform.up - _originOffsetX * (Vector2)transform.right;
-
-                overrideLeftHitInfo = Physics2D.Raycast(overrideLeftRayOrigin, -transform.right, _horizontalRayLength, _ground);
-                Debug.DrawRay(overrideLeftRayOrigin, _horizontalRayLength * -transform.right, Color.black);
-
-                if (overrideLeftHitInfo.collider != null)
-                {
-                    Debug.Log("Left wall detected");
-                    _leftHitInfo = overrideLeftHitInfo;
-                }
+                Debug.Log("Left wall detected");
+                _leftHitInfo = overrideLeftHitInfo;
             }
+        }
 
-            // If moving towards player's right
-            else if (VectorSimilarity(_input, transform.right) > similarityThreshold && _rb.velocity != Vector2.zero)
+        // If moving towards player's right
+        else if (VectorSimilarity(_input, transform.right) > similarityThreshold)
+        {
+            RaycastHit2D overrideRightHitInfo;
+            Vector2 overrideRightRayOrigin = (Vector2)transform.position + _originOffsetY * (Vector2)transform.up + _originOffsetX * (Vector2)transform.right;
+
+            overrideRightHitInfo = Physics2D.Raycast(overrideRightRayOrigin, transform.right, _horizontalRayLength, _ground);
+            Debug.DrawRay(overrideRightRayOrigin, _horizontalRayLength * transform.right, Color.black);
+
+            if (overrideRightHitInfo.collider != null)
             {
-                RaycastHit2D overrideRightHitInfo;
-                Vector2 overrideRightRayOrigin = (Vector2)transform.position + _originOffsetY * (Vector2)transform.up + _originOffsetX * (Vector2)transform.right;
-
-                overrideRightHitInfo = Physics2D.Raycast(overrideRightRayOrigin, transform.right, _horizontalRayLength, _ground);
-                Debug.DrawRay(overrideRightRayOrigin, _horizontalRayLength * transform.right, Color.black);
-
-                if (overrideRightHitInfo.collider != null)
-                {
-                    Debug.Log("Right wall detected");
-                    _rightHitInfo = overrideRightHitInfo;
-                }
+                Debug.Log("Right wall detected");
+                _rightHitInfo = overrideRightHitInfo;
             }
         }
     }
