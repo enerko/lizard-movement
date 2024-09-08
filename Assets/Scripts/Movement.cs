@@ -25,26 +25,15 @@ public class Movement : MonoBehaviour
     [SerializeField] private float _originOffsetX;
 
     private float similarityThreshold = 0.2f;
-    [SerializeField] private float _maxSpeed;
 
     [SerializeField] private float _inwardAngle;
 
     [SerializeField] private float _angularSpeed;
 
     private bool _isRotating = false;
-    private float _minAngle = 0.5f;
+    private float _minAngle = 0.4f;
 
     private Vector2 _input;
-
-    private Vector2 _customGravity;
-    private float _gravityScale = 10;
-
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
 
     // Update is called once per frame
     void Update()
@@ -64,25 +53,25 @@ public class Movement : MonoBehaviour
             OverrideRays();
 
             PositionOnGround();
+
             Walk();
         }
     }
 
     void Walk()
     { 
-        Vector2 groundNormal = (_leftHitInfo.normal + _rightHitInfo.normal) / 2;
-
-        if (VectorSimilarity(_input, groundNormal) < similarityThreshold)
+        if (!_isRotating)
         {
-            // Allow movement in the input direction
-            _rb.velocity = _input.normalized * _speed;
-        }
+            Vector2 groundNormal = (_leftHitInfo.normal + _rightHitInfo.normal) / 2;
 
-        // Clamp the velocity to the maximum speed
-        if (_rb.velocity.sqrMagnitude > _maxSpeed)
-        {
-            _rb.velocity = _rb.velocity.normalized * _maxSpeed;
+            if (VectorSimilarity(_input, groundNormal) < similarityThreshold)
+            {
+                // Allow movement in the input direction
+                _rb.velocity = _input.normalized * _speed;
+            }
         }
+        else _rb.velocity = Vector2.zero;
+        
     }
 
     bool DoubleRaycastDown()
@@ -117,13 +106,18 @@ public class Movement : MonoBehaviour
 
         // Calculate the target rotation based on the average normal
         Quaternion targetRotation = Quaternion.FromToRotation(Vector3.up, averageNormal);
-        
+
+        // If rotating to the top wall, deal separately as the Quaternion(1,0,0,0) is invalid 
+        if (targetRotation == new Quaternion(1, 0, 0, 0))
+        {
+            targetRotation = new Quaternion(0, 0, 1, 0);
+        }
+        Debug.Log(targetRotation);
 
         // If the angle difference is small, don't rotate (to avoid jittering at the edge of two surfaces with different slopes, i.e. corners)
         float angleDifference = Quaternion.Angle(transform.rotation, targetRotation);
         Quaternion finalRotation = Quaternion.RotateTowards(transform.rotation, targetRotation, _angularSpeed);
-        Debug.Log(finalRotation);
-
+        
         if (angleDifference > _minAngle)
         {
             transform.rotation = Quaternion.Euler(0, 0, finalRotation.eulerAngles.z);

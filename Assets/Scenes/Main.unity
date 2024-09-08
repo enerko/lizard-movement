@@ -136,7 +136,7 @@ GameObject:
   - component: {fileID: 490916208}
   - component: {fileID: 490916212}
   m_Layer: 0
-  m_Name: Square
+  m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -294,7 +294,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _rb: {fileID: 490916208}
-  _speed: 8
+  _speed: 5
   _ground:
     serializedVersion: 2
     m_Bits: 64
@@ -304,9 +304,8 @@ MonoBehaviour:
   _posYOffet: 0.9
   _horizontalRayLength: 0.8
   _originOffsetX: 0.2
-  _maxSpeed: 5
   _inwardAngle: -10
-  _angularSpeed: 20
+  _angularSpeed: 30
 --- !u!1 &827215606
 GameObject:
   m_ObjectHideFlags: 0
@@ -727,7 +726,7 @@ Transform:
   m_GameObject: {fileID: 1255824463}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
-  m_LocalPosition: {x: -5.55, y: -0.31, z: 0}
+  m_LocalPosition: {x: -4.38, y: -0.31, z: 0}
   m_LocalScale: {x: 4.72, y: 0.96, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1875,7 +1874,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!61 &2103518042
 BoxCollider2D:
   m_ObjectHideFlags: 0
