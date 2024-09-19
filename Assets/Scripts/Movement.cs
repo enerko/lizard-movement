@@ -51,9 +51,7 @@ public class Movement : MonoBehaviour
         if (DoubleRaycastDown())
         {
             OverrideRays();
-
             PositionOnGround();
-
             Walk();
         }
     }
@@ -91,11 +89,10 @@ public class Movement : MonoBehaviour
         Debug.DrawRay(leftRayOrigin, inwardDirectionLeft * _downwardRayLength, Color.red);
         Debug.DrawRay(rightRayOrigin, inwardDirectionRight * _downwardRayLength, Color.blue);
 
-        // Return true if both rays hit something
+        // Return true if both rays detect the ground
         return _leftHitInfo.collider != null && _rightHitInfo.collider != null;
     }
 
-    // Rotation logic
     void PositionOnGround()
     {
         // Calculate average normal and average point between the left and right rays
@@ -112,7 +109,6 @@ public class Movement : MonoBehaviour
         {
             targetRotation = new Quaternion(0, 0, 1, 0);
         }
-        Debug.Log(targetRotation);
 
         // If the angle difference is small, don't rotate (to avoid jittering at the edge of two surfaces with different slopes, i.e. corners)
         float angleDifference = Quaternion.Angle(transform.rotation, targetRotation);
@@ -147,7 +143,6 @@ public class Movement : MonoBehaviour
 
             if (overrideLeftHitInfo.collider != null)
             {
-                Debug.Log("Left wall detected");
                 _leftHitInfo = overrideLeftHitInfo;
             }
         }
@@ -163,7 +158,6 @@ public class Movement : MonoBehaviour
 
             if (overrideRightHitInfo.collider != null)
             {
-                Debug.Log("Right wall detected");
                 _rightHitInfo = overrideRightHitInfo;
             }
         }
@@ -171,7 +165,7 @@ public class Movement : MonoBehaviour
 
     private float VectorSimilarity(Vector2 vectorA, Vector2 vectorB)
     {
-        // ignore magnitude
+        // Ignore magnitude
         vectorA.Normalize();
         vectorB.Normalize();
 
